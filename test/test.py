@@ -75,6 +75,7 @@ def tfm_spectro(file, sr=16000, to_db_scale=False, n_fft=1024,
                                     f_min=f_min, f_max=f_max, pad=pad,)(audio.sig.reshape(1, -1))
     mel = mel.permute(0,2,1) # swap dimension, mostly to look sane to a human.
     if to_db_scale: mel = transforms.SpectrogramToDB(stype='magnitude', top_db=f_max)(mel)
+    print(type(mel))
     print(mel)
     return mel
 
@@ -106,7 +107,7 @@ def get_spectrogram_feature(filepath):
 
 
 if __name__ == "__main__":
-    file_path = "../speech_hackathon_2019/sample_dataset/train/train_data/wav_002.wav"
+    file_path = "./sample_dataset/train/train_data/wav_002.wav"
         
     tfm_spectro(file_path, ws=512, hop=256, n_mels=128, to_db_scale=True, f_max=8000, f_min=-80.0)
     readwav(file_path)

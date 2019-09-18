@@ -246,7 +246,10 @@ def bind_model(model, optimizer=None):
         model.eval()
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        input = get_spectrogram_feature(wav_path).unsqueeze(0)
+        combined = time_mask(freq_mask(time_warp(get_spectrogram_feature_2(wav_path)), num_masks=2), num_masks=2).unsqueeze(0)
+    
+        #input = get_spectrogram_feature(wav_path).unsqueeze(0)
+        input = combined
         input = input.to(device)
 
         logit = model(input_variable=input, input_lengths=None, teacher_forcing_ratio=0)
@@ -302,8 +305,8 @@ def main():
     parser.add_argument('--hidden_size', type=int, default=512, help='hidden size of model (default: 256)')
     parser.add_argument('--layer_size', type=int, default=3, help='number of layers of model (default: 3)')
     parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate in training (default: 0.2)')
-    parser.add_argument('--bidirectional', action='store_true', help='use bidirectional RNN for encoder (default: False)')
-    parser.add_argument('--use_attention', action='store_true', help='use attention between encoder-decoder (default: False)')
+    parser.add_argument('--bidirectional', default=True, action='store_true', help='use bidirectional RNN for encoder (default: False)')
+    parser.add_argument('--use_attention', default=True, action='store_true', help='use attention between encoder-decoder (default: False)')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size in training (default: 32)')
     parser.add_argument('--workers', type=int, default=4, help='number of workers in dataset loader (default: 4)')
     parser.add_argument('--max_epochs', type=int, default=10, help='number of max epochs in training (default: 10)')
@@ -340,7 +343,7 @@ def main():
     dec = DecoderRNN(len(char2index), args.max_len, args.hidden_size * (2 if args.bidirectional else 1),
                      SOS_token, EOS_token,
                      n_layers=args.layer_size, rnn_cell='gru', bidirectional=args.bidirectional,
-                     input_dropout_p=args.dropout, dropout_p=args.dropout, use_attention=args.use_attention)
+                     input_dropout_p=args.dropout, dropout_p=args.dropout, use_attention=True)
 
     model = Seq2seq(enc, dec)
     model.flatten_parameters()

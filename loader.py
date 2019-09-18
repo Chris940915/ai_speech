@@ -20,11 +20,16 @@ import os
 import sys
 import math
 import wavio
-import time
+import time 
 import torch
 import random
 import threading
 import logging
+import scipy.io as sio
+from nb_SparseImageWarp import sparse_image_warp
+
+import scipy.io.wavfile
+import librosa
 from torch.utils.data import Dataset, DataLoader
 
 logger = logging.getLogger('root')
@@ -33,8 +38,8 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=FORMAT)
 logger.setLevel(logging.INFO)
 
 PAD = 0
-N_FFT = 512
-SAMPLE_RATE = 16000
+N_FFT = 1024
+#SAMPLE_RATE = 16000
 
 target_dict = dict()
 
@@ -45,14 +50,24 @@ def load_targets(path):
             target_dict[key] = target
 
 def get_spectrogram_feature(filepath):
+    sample_rate, data = sio.wavfile.read(filepath)
     (rate, width, sig) = wavio.readwav(filepath)
+
     sig = sig.ravel()
+
+    #Get Sample rate from wave. 
+    SAMPLE_RATE = sample_rate
+
+    #frame length == window length 
+    #win_length = N_FFT/SAMPLE_RATE 1024/16000 = 0.64 
+
+    #hop length = window_length - frame stride 
 
     stft = torch.stft(torch.FloatTensor(sig),
                         N_FFT,
                         hop_length=int(0.01*SAMPLE_RATE),
-                        win_length=int(0.030*SAMPLE_RATE),
-                        window=torch.hamming_window(int(0.030*SAMPLE_RATE)),
+                        win_length=int(0.060*SAMPLE_RATE),
+                        window=torch.hamming_window(int(0.060*SAMPLE_RATE)),
                         center=False,
                         normalized=False,
                         onesided=True)
@@ -63,6 +78,75 @@ def get_spectrogram_feature(filepath):
     feat = torch.FloatTensor(feat).transpose(0, 1)
 
     return feat
+
+
+def get_spectrogram_feature_2(filepath):
+    sample_rate, data = sio.wavfile.read(filepath)
+    (rate, width, sig) = wavio.readwav(filepath)
+
+    sig = sig.ravel()
+
+    #Get Sample rate from wave. 
+    SAMPLE_RATE = sample_rate
+
+    mftt = librosa.feature.melspectrogram(y=torch.FloatTensor(sig), sr= SAMPLE_RATE, n_fft=N_FFT, hop_length=int(0.01*SAMPLE_RATE),win_length=int(0.060*SAMPLE_RATE))
+
+    return mftt
+
+def time_warp(spec, W=5):
+    num_rows = spec.shape[1]
+    spec_len = spec.shape[2]
+    device = spec.device
+    
+    y = num_rows//2
+    horizontal_line_at_ctr = spec[0][y]
+    assert len(horizontal_line_at_ctr) == spec_len
+    
+    point_to_warp = horizontal_line_at_ctr[random.randrange(W, spec_len - W)]
+    assert isinstance(point_to_warp, torch.Tensor)
+
+    # Uniform distribution from (0,W) with chance to be up to W negative
+    dist_to_warp = random.randrange(-W, W)
+    src_pts, dest_pts = (torch.tensor([[[y, point_to_warp]]], device=device), 
+                         torch.tensor([[[y, point_to_warp + dist_to_warp]]], device=device))
+    warped_spectro, dense_flows = sparse_image_warp(spec, src_pts, dest_pts)
+    return warped_spectro.squeeze(3)
+
+
+def freq_mask(spec, F=30, num_masks=1, replace_with_zero=False):
+    cloned = spec.clone()
+    num_mel_channels = cloned.shape[1]
+    
+    for i in range(0, num_masks):        
+        f = random.randrange(0, F)
+        f_zero = random.randrange(0, num_mel_channels - f)
+
+        # avoids randrange error if values are equal and range is empty
+        if (f_zero == f_zero + f): return cloned
+
+        mask_end = random.randrange(f_zero, f_zero + f) 
+        if (replace_with_zero): cloned[0][f_zero:mask_end] = 0
+        else: cloned[0][f_zero:mask_end] = cloned.mean()
+    
+    return cloned
+
+    
+def time_mask(spec, T=40, num_masks=1, replace_with_zero=False):
+    cloned = spec.clone()
+    len_spectro = cloned.shape[2]
+    
+    for i in range(0, num_masks):
+        t = random.randrange(0, T)
+        t_zero = random.randrange(0, len_spectro - t)
+
+        # avoids randrange error if values are equal and range is empty
+        if (t_zero == t_zero + t): return cloned
+
+        mask_end = random.randrange(t_zero, t_zero + t)
+        if (replace_with_zero): cloned[0][:,t_zero:mask_end] = 0
+        else: cloned[0][:,t_zero:mask_end] = cloned.mean()
+    return cloned
+
 
 def get_script(filepath, bos_id, eos_id):
     key = filepath.split('/')[-1].split('.')[0]

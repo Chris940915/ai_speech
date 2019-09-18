@@ -89,8 +89,11 @@ def get_spectrogram_feature_2(filepath):
     #Get Sample rate from wave. 
     SAMPLE_RATE = sample_rate
 
-    mftt = librosa.feature.melspectrogram(y=torch.FloatTensor(sig), sr= SAMPLE_RATE, n_fft=N_FFT, hop_length=int(0.01*SAMPLE_RATE),win_length=int(0.060*SAMPLE_RATE))
+    sig_f = sig.astype(float)
 
+    mftt = librosa.feature.melspectrogram(y=sig_f, sr= SAMPLE_RATE, n_fft=N_FFT, hop_length=int(0.01*SAMPLE_RATE),win_length=int(0.060*SAMPLE_RATE))
+    print(mftt)
+    print(type(mftt))
     return mftt
 
 def time_warp(spec, W=5):

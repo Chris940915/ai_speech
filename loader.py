@@ -71,12 +71,19 @@ def get_spectrogram_feature(filepath):
                         center=False,
                         normalized=False,
                         onesided=True)
-
     stft = (stft[:,:,0].pow(2) + stft[:,:,1].pow(2)).pow(0.5);
+
     amag = stft.numpy();
     feat = torch.FloatTensor(amag)
     feat = torch.FloatTensor(feat).transpose(0, 1)
 
+    print(feat)
+    print(feat.shape)
+    print(feat.unsqueeze(0).shape)
+    print('--------------------')
+    print('--------------------')
+
+    print(SAMPLE_RATE)
     return feat
 
 
@@ -91,10 +98,16 @@ def get_spectrogram_feature_2(filepath):
 
     sig_f = sig.astype(float)
 
-    mftt = librosa.feature.melspectrogram(y=sig_f, sr= SAMPLE_RATE, n_fft=N_FFT, hop_length=int(0.01*SAMPLE_RATE),win_length=int(0.060*SAMPLE_RATE))
-    print(mftt)
-    print(type(mftt))
-    return mftt
+    mftt = librosa.feature.melspectrogram(y=sig_f, sr= SAMPLE_RATE, n_fft=N_FFT, hop_length=256,win_length=512, n_mels=513)
+    mftt = mftt.T
+    torch_mftt = torch.FloatTensor(mftt)
+    print(torch_mftt.shape)
+    torch_mftt = torch_mftt.unsqueeze(0)
+    print(torch_mftt.shape)
+    
+    print(torch.__version__)
+    print(librosa.__version__)
+    return torch_mftt.unsqueeze(0)
 
 def time_warp(spec, W=5):
     num_rows = spec.shape[1]
@@ -276,4 +289,18 @@ class MultiLoader():
     def join(self):
         for i in range(self.worker_size):
             self.loader[i].join()
+
+
+if __name__ == "__main__":
+    file_path = './sample_dataset/train/train_data/wav_002.wav'
+    #get_spectrogram_feature(file_path)
+    get_spectrogram_feature_2(file_path)
+    #print(torch.__version__)
+    #combined = time_mask(freq_mask(time_warp(get_spectrogram_feature_2(file_path)), num_masks=2), num_masks=2).unsqueeze(0)
+    #combined = time_warp(get_spectrogram_feature_2(file_path))
+    #print("combined:")
+    #print(combined.shape)
+    #print(combined.squeeze(1).shape)
+    #combined = combined.squeeze(1)
+	
 

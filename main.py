@@ -248,8 +248,8 @@ def bind_model(model, optimizer=None):
 
         combined = time_mask(freq_mask(time_warp(get_spectrogram_feature_2(wav_path)), num_masks=2), num_masks=2).unsqueeze(0)
     
-        #input = get_spectrogram_feature(wav_path).unsqueeze(0)
-        input = combined
+        input = get_spectrogram_feature(wav_path).unsqueeze(0)
+        #input = combined
         input = input.to(device)
 
         logit = model(input_variable=input, input_lengths=None, teacher_forcing_ratio=0)
@@ -334,7 +334,9 @@ def main():
     device = torch.device('cuda' if args.cuda else 'cpu')
 
     # N_FFT: defined in loader.py
-    feature_size = N_FFT / 2 + 1
+    #feature_size = N_FFT / 2 + 1
+
+    feature_size = N_FFT / 8     
 
     enc = EncoderRNN(feature_size, args.hidden_size,
                      input_dropout_p=args.dropout, dropout_p=args.dropout,
